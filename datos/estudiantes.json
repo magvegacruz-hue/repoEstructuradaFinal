@@ -1,0 +1,36 @@
+{
+    "estudiantes": [
+        {
+            "cif": "25010776",
+            "nombre": "Miguel Angel Gonzalez Vegacruz",
+            "facultad": "FCAE",
+            "carrera": "Economia Empresarial",
+            "tipo_beca": "Academica",
+            "correo": "magvegacruz@uamv.edu.ni"
+        },
+        {
+            "cif": "24010776",
+            "nombre": "Durancito Garcia",
+            "facultad": "FIA",
+            "carrera": "Ingenieria en Sistemas",
+            "tipo_beca": "Academica",
+            "correo": "durancito@uamv.edu.ni"
+        },
+        {
+            "cif": "25011209",
+            "nombre": "carlos pellas",
+            "facultad": "fcae",
+            "carrera": "economia empresarial",
+            "tipo_beca": "academica",
+            "correo": "carlitos@uamv.edu.ni"
+        },
+        {
+            "cif": "24014416",
+            "nombre": "barbara chavarria",
+            "facultad": "fcae",
+            "carrera": "economia empresarial",
+            "tipo_beca": "academica",
+            "correo": "barbara@uamv.edu.ni"
+        }
+    ]
+}
