@@ -16,7 +16,14 @@
       </p>
     {% endif %}
 
-    <form method="post"
+    <form id="generar-registros-form"
+          method="post"
+          action="{{ url_for('registrar_solicitud_ruta', id_actividad=actividad.id) }}">
+      <input type="hidden" name="accion" value="generar_registros">
+    </form>
+
+    <form id="solicitud-form"
+          method="post"
           action="{{ url_for('registrar_solicitud_ruta', id_actividad=actividad.id) }}"
           class="row g-3">
 
@@ -32,12 +39,23 @@
 
       <div class="col-md-6">
         <label class="form-label">Facultad</label>
-        <input name="facultad" class="form-control" required>
+        <select id="facultad" name="facultad" class="form-select" required>
+          <option value="">Selecciona una facultad</option>
+          {% for codigo, facultad in facultades_carreras.items() %}
+            <option value="{{ codigo }}">{{ facultad.nombre }}</option>
+          {% endfor %}
+        </select>
       </div>
 
       <div class="col-md-6">
         <label class="form-label">Carrera</label>
-        <input name="carrera" class="form-control" required>
+        <select id="carrera"
+                name="carrera"
+                class="form-select"
+                required
+                disabled>
+          <option value="">Primero selecciona una facultad</option>
+        </select>
       </div>
 
       <div class="col-md-6">
@@ -61,10 +79,68 @@
         </select>
       </div>
 
+      <div class="col-md-6">
+        <label for="cantidad_registros" class="form-label">
+          Cantidad de solicitudes aleatorias
+        </label>
+        <div class="input-group">
+          <input id="cantidad_registros"
+                 name="cantidad_registros"
+                 type="number"
+                 class="form-control"
+                 min="1"
+                 max="1000000"
+                 step="1"
+                 placeholder="1 a 1,000,000"
+                 form="generar-registros-form"
+                 required>
+          <button type="submit"
+                  class="btn btn-outline-primary"
+                  form="generar-registros-form">
+            Generar solicitudes aleatorias
+          </button>
+        </div>
+        {% if session.get("rol") != "administrador" %}
+          <div class="form-text">
+            Para generar solicitudes, inicia sesión como
+            <a href="{{ url_for('login_admin') }}">Vida Estudiantil</a>;
+            después se generará la cantidad indicada y volverás a esta actividad.
+          </div>
+        {% endif %}
+      </div>
+
       <div class="col-12">
         <button class="btn btn-primary w-100">Enviar solicitud</button>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+  const facultadesCarreras = {{ facultades_carreras|tojson }};
+  const facultadSelect = document.getElementById("facultad");
+  const carreraSelect = document.getElementById("carrera");
+
+  facultadSelect.addEventListener("change", () => {
+    const seleccion = facultadesCarreras[facultadSelect.value];
+    carreraSelect.innerHTML = "";
+
+    const opcionInicial = document.createElement("option");
+    opcionInicial.value = "";
+    opcionInicial.textContent = seleccion
+      ? "Selecciona una carrera"
+      : "Primero selecciona una facultad";
+    carreraSelect.appendChild(opcionInicial);
+    carreraSelect.disabled = !seleccion;
+
+    if (seleccion) {
+      seleccion.carreras.forEach((nombreCarrera) => {
+        const opcion = document.createElement("option");
+        opcion.value = nombreCarrera;
+        opcion.textContent = nombreCarrera;
+        carreraSelect.appendChild(opcion);
+      });
+    }
+  });
+</script>
 {% endblock %}

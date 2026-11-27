@@ -27,6 +27,8 @@ from logica.gestorDatos import (
     editar_actividad,
     eliminar_actividad,
     registrar_solicitud,
+    generar_solicitudes_aleatorias,
+    FACULTADES_CARRERAS,
     obtener_solicitudes_pendientes,
     cambiar_estado_solicitud,
     obtener_historial_estudiante,
@@ -102,6 +104,39 @@ def login_admin():
         if usuario == ADMIN_USUARIO and contrasena == ADMIN_CONTRASENA:
             session["rol"] = "administrador"
             flash("Inicio de sesión exitoso.", "exito")
+
+            generacion_pendiente = session.pop("generacion_pendiente", None)
+
+            if isinstance(generacion_pendiente, dict):
+                id_actividad = generacion_pendiente.get("id_actividad")
+                cantidad = generacion_pendiente.get("cantidad")
+
+                if (
+                    isinstance(id_actividad, str)
+                    and isinstance(cantidad, int)
+                    and not isinstance(cantidad, bool)
+                    and 1 <= cantidad <= 1_000_000
+                ):
+                    resultado = generar_solicitudes_aleatorias(
+                        datos,
+                        id_actividad,
+                        cantidad
+                    )
+
+                    if resultado["exito"]:
+                        flash(resultado["mensaje"], "exito")
+                    else:
+                        flash(resultado["mensaje"], "error")
+
+                    return redirect(
+                        url_for(
+                            "registrar_solicitud_ruta",
+                            id_actividad=id_actividad
+                        )
+                    )
+
+                flash("La generación pendiente no es válida.", "error")
+
             return redirect(url_for("panel_admin"))
 
         flash("Usuario o contraseña incorrectos.", "error")
@@ -201,12 +236,27 @@ def solicitudes_pendientes_ruta():
         return redirect(url_for("login_admin"))
 
     # Permite ordenar por fecha, horas o nombre del estudiante.
+    claves_ordenamiento = {
+        "fecha_solicitud": lambda solicitud: str(
+            solicitud.get("fecha_solicitud", "")
+        ),
+        "horas_solicitadas": lambda solicitud: _entero_o_cero(
+            solicitud.get("horas_solicitadas")
+        ),
+        "nombre_estudiante": lambda solicitud: str(
+            solicitud.get("nombre_estudiante", "")
+        ).casefold()
+    }
     criterio = request.args.get("criterio", "fecha_solicitud")
+
+    if criterio not in claves_ordenamiento:
+        criterio = "fecha_solicitud"
+
     solicitudes = obtener_solicitudes_pendientes(datos)
 
     solicitudes_ordenadas = ordenar_por_insercion(
         solicitudes,
-        clave=lambda solicitud: solicitud.get(criterio, "")
+        clave=claves_ordenamiento[criterio]
     )
 
     return render_template(
@@ -281,6 +331,48 @@ def registrar_solicitud_ruta(id_actividad):
         return redirect(url_for("inicio"))
 
     if request.method == "POST":
+        if request.form.get("accion") == "generar_registros":
+            try:
+                cantidad = int(request.form.get("cantidad_registros", ""))
+            except ValueError:
+                flash("Ingresa una cantidad entera entre 1 y 1,000,000.", "error")
+                return redirect(
+                    url_for("registrar_solicitud_ruta", id_actividad=id_actividad)
+                )
+
+            if cantidad < 1 or cantidad > 1_000_000:
+                flash("La cantidad debe estar entre 1 y 1,000,000.", "error")
+                return redirect(
+                    url_for("registrar_solicitud_ruta", id_actividad=id_actividad)
+                )
+
+            if not administrador_autenticado():
+                session["generacion_pendiente"] = {
+                    "id_actividad": id_actividad,
+                    "cantidad": cantidad
+                }
+                flash(
+                    f"Al iniciar sesión se generarán {cantidad:,} solicitudes "
+                    "para esta actividad.",
+                    "info"
+                )
+                return redirect(url_for("login_admin"))
+
+            resultado = generar_solicitudes_aleatorias(
+                datos,
+                id_actividad,
+                cantidad
+            )
+
+            if resultado["exito"]:
+                flash(resultado["mensaje"], "exito")
+            else:
+                flash(resultado["mensaje"], "error")
+
+            return redirect(
+                url_for("registrar_solicitud_ruta", id_actividad=id_actividad)
+            )
+
         resultado = registrar_solicitud(datos, id_actividad, request.form)
 
         if resultado["exito"]:
@@ -291,7 +383,18 @@ def registrar_solicitud_ruta(id_actividad):
 
         flash(resultado["mensaje"], "error")
 
-    return render_template("registrar_solicitud.html", actividad=actividad)
+    return render_template(
+        "registrar_solicitud.html",
+        actividad=actividad,
+        facultades_carreras=FACULTADES_CARRERAS
+    )
+
+
+def _entero_o_cero(valor):
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return 0
 
 
 # Muestra el historial del estudiante y permite filtrar solicitudes.

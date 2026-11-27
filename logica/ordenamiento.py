@@ -5,21 +5,19 @@
 # La función "clave" permite indicar qué campo se utilizará para ordenar.
 # Ejemplo: clave=lambda solicitud: solicitud["fecha_solicitud"]
 def ordenar_por_insercion(lista, clave=lambda elemento: elemento):
-    # Se trabaja sobre una copia para no modificar la lista original.
-    lista_ordenada = lista.copy()
+    elementos_ordenados = [(elemento, clave(elemento)) for elemento in lista]
 
-    # Comienza desde el segundo elemento porque el primero ya está "ordenado".
-    for indice in range(1, len(lista_ordenada)):
-        elemento_actual = lista_ordenada[indice]
-        valor_actual = clave(elemento_actual)
+    for indice in range(1, len(elementos_ordenados)):
+        elemento_actual = elementos_ordenados[indice]
         posicion = indice - 1
 
-        # Desplaza los elementos mayores hacia la derecha.
-        while posicion >= 0 and clave(lista_ordenada[posicion]) > valor_actual:
-            lista_ordenada[posicion + 1] = lista_ordenada[posicion]
+        while (
+            posicion >= 0
+            and elementos_ordenados[posicion][1] > elemento_actual[1]
+        ):
+            elementos_ordenados[posicion + 1] = elementos_ordenados[posicion]
             posicion -= 1
 
-        # Inserta el elemento actual en su posición correcta.
-        lista_ordenada[posicion + 1] = elemento_actual
+        elementos_ordenados[posicion + 1] = elemento_actual
 
-    return lista_ordenada
+    return [elemento for elemento, _ in elementos_ordenados]

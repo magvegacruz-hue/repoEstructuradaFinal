@@ -3,6 +3,8 @@
 
 import json
 import os
+import secrets
+import string
 import uuid
 from datetime import datetime
 
@@ -25,6 +27,83 @@ BENEFICIOS = [
     "Crédito social",
     "Crédito cultural"
 ]
+
+FACULTADES_CARRERAS = {
+    "FCAE": {
+        "nombre": "Facultad de Ciencias Administrativas y Económicas (FCAE)",
+        "carreras": (
+            "Administración de Empresas",
+            "Contabilidad y Finanzas",
+            "Economía Empresarial",
+            "Negocios Internacionales"
+        )
+    },
+    "FCJHRI": {
+        "nombre": "Facultad de Ciencias Jurídicas, Humanidades y Relaciones Internacionales (FCJHRI)",
+        "carreras": (
+            "Derecho",
+            "Diplomacia y Relaciones Internacionales"
+        )
+    },
+    "FCM": {
+        "nombre": "Facultad de Ciencias Médicas (FCM)",
+        "carreras": (
+            "Medicina General",
+            "Psicología",
+            "Nutrición"
+        )
+    },
+    "FODO": {
+        "nombre": "Facultad de Odontología (FODO)",
+        "carreras": ("Odontología",)
+    },
+    "FIA": {
+        "nombre": "Facultad de Ingeniería y Arquitectura (FIA)",
+        "carreras": (
+            "Arquitectura",
+            "Ingeniería Civil",
+            "Ingeniería Industrial",
+            "Ingeniería de Sistemas"
+        )
+    },
+    "FMDC": {
+        "nombre": "Facultad de Marketing, Diseño y Ciencias de la Comunicación",
+        "carreras": (
+            "Marketing y Publicidad",
+            "Diseño y Comunicación Visual",
+            "Comunicación y Relaciones Públicas"
+        )
+    },
+    "UAM College": {
+        "nombre": "UAM College",
+        "carreras": (
+            "Major in Global Management",
+            "Major in Global Finance",
+            "Major in Strategic Marketing",
+            "Major in International Development"
+        )
+    }
+}
+TIPOS_BECA_ALEATORIOS = ("academica", "deportiva", "cultural")
+ALFABETO_ALEATORIO = string.ascii_lowercase
+DIGITOS_ALEATORIOS = string.digits
+
+
+def _cadena_aleatoria(alfabeto, longitud, bytes_aleatorios):
+    limite = 256 - (256 % len(alfabeto))
+    caracteres = []
+
+    for valor in bytes_aleatorios:
+        if valor < limite:
+            caracteres.append(alfabeto[valor % len(alfabeto)])
+            if len(caracteres) == longitud:
+                return "".join(caracteres)
+
+    while len(caracteres) < longitud:
+        valor = secrets.randbelow(limite)
+        caracteres.append(alfabeto[valor % len(alfabeto)])
+
+    return "".join(caracteres)
 
 
 # Carga un archivo JSON. Si no existe, lo crea con la estructura inicial.
@@ -351,10 +430,22 @@ def registrar_solicitud(datos, id_actividad, formulario):
             "mensaje": "El CIF y el nombre son obligatorios."
         }
 
-    if not formulario.get("facultad", "").strip() or not formulario.get("carrera", "").strip():
+    facultad = formulario.get("facultad", "").strip()
+    carrera = formulario.get("carrera", "").strip()
+
+    if not facultad or not carrera:
         return {
             "exito": False,
             "mensaje": "La facultad y la carrera son obligatorias."
+        }
+
+    if (
+        facultad not in FACULTADES_CARRERAS
+        or carrera not in FACULTADES_CARRERAS[facultad]["carreras"]
+    ):
+        return {
+            "exito": False,
+            "mensaje": "La carrera seleccionada no pertenece a la facultad."
         }
 
     if beneficio not in BENEFICIOS:
@@ -383,8 +474,8 @@ def registrar_solicitud(datos, id_actividad, formulario):
         "id_solicitud": f"SOL-{str(uuid.uuid4())[:8].upper()}",
         "cif": cif,
         "nombre_estudiante": formulario.get("nombre", "").strip(),
-        "facultad": formulario.get("facultad", "").strip(),
-        "carrera": formulario.get("carrera", "").strip(),
+        "facultad": facultad,
+        "carrera": carrera,
         "tipo_beca": formulario.get("tipo_beca", "").strip(),
         "correo": formulario.get("correo", "").strip(),
         "id_actividad": id_actividad,
@@ -406,6 +497,113 @@ def registrar_solicitud(datos, id_actividad, formulario):
     return {
         "exito": True,
         "mensaje": "Solicitud enviada correctamente. Estado: Pendiente."
+    }
+
+
+# Genera solicitudes de prueba con datos aleatorios que cumplen los formatos pedidos.
+def generar_solicitudes_aleatorias(datos, id_actividad, cantidad):
+    if (
+        not isinstance(cantidad, int)
+        or isinstance(cantidad, bool)
+        or cantidad < 1
+        or cantidad > 1_000_000
+    ):
+        return {
+            "exito": False,
+            "mensaje": "La cantidad debe estar entre 1 y 1,000,000."
+        }
+
+    actividad = buscar_actividad_por_id(datos, id_actividad)
+
+    if actividad is None:
+        return {
+            "exito": False,
+            "mensaje": "La actividad no existe."
+        }
+
+    solicitudes_existentes = datos["solicitudes"]["solicitudes"]
+    cifs_existentes = {
+        estudiante["cif"] for estudiante in datos["estudiantes"]["estudiantes"]
+    }
+    cifs_existentes.update(
+        solicitud["cif"] for solicitud in solicitudes_existentes
+    )
+    cifs_generados = set()
+    ids_generados = set()
+    ids_existentes = {
+        solicitud["id_solicitud"] for solicitud in solicitudes_existentes
+    }
+    solicitudes_nuevas = []
+    estudiantes_nuevos = []
+    fecha_solicitud = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    while len(solicitudes_nuevas) < cantidad:
+        muestra_aleatoria = secrets.token_bytes(48)
+        cif = _cadena_aleatoria(
+            DIGITOS_ALEATORIOS,
+            8,
+            muestra_aleatoria[:10]
+        )
+
+        if cif in cifs_existentes or cif in cifs_generados:
+            continue
+
+        cifs_generados.add(cif)
+        nombre = _cadena_aleatoria(
+            ALFABETO_ALEATORIO,
+            8,
+            muestra_aleatoria[10:26]
+        )
+        facultad = secrets.choice(tuple(FACULTADES_CARRERAS))
+        carrera = secrets.choice(FACULTADES_CARRERAS[facultad]["carreras"])
+        tipo_beca = secrets.choice(TIPOS_BECA_ALEATORIOS)
+        correo = _cadena_aleatoria(
+            ALFABETO_ALEATORIO,
+            10,
+            muestra_aleatoria[26:]
+        ) + "@uamv.edu.ni"
+
+        estudiante = {
+            "cif": cif,
+            "nombre": nombre,
+            "facultad": facultad,
+            "carrera": carrera,
+            "tipo_beca": tipo_beca,
+            "correo": correo
+        }
+        estudiantes_nuevos.append(estudiante)
+        id_solicitud = f"SOL-{uuid.uuid4().hex.upper()}"
+
+        while id_solicitud in ids_existentes or id_solicitud in ids_generados:
+            id_solicitud = f"SOL-{uuid.uuid4().hex.upper()}"
+
+        ids_generados.add(id_solicitud)
+        solicitudes_nuevas.append({
+            "id_solicitud": id_solicitud,
+            "cif": cif,
+            "nombre_estudiante": nombre,
+            "facultad": facultad,
+            "carrera": carrera,
+            "tipo_beca": tipo_beca,
+            "correo": correo,
+            "id_actividad": id_actividad,
+            "nombre_actividad": actividad["nombre"],
+            "beneficio_solicitado": secrets.choice(BENEFICIOS),
+            "horas_solicitadas": actividad["horas_convalidables"],
+            "fecha_solicitud": fecha_solicitud,
+            "estado": "Pendiente",
+            "observacion": ""
+        })
+
+    solicitudes_existentes.extend(solicitudes_nuevas)
+    datos["estudiantes"]["estudiantes"].extend(estudiantes_nuevos)
+    guardar_solicitudes(datos)
+    guardar_estudiantes(datos)
+    cargar_estructuras(datos)
+
+    return {
+        "exito": True,
+        "mensaje": f"Se generaron {cantidad:,} solicitudes aleatorias correctamente."
     }
 
 

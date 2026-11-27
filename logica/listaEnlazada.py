@@ -5,7 +5,8 @@
 # Crea una lista enlazada vacía.
 def crear_lista():
     return {
-        "cabeza": None
+        "cabeza": None,
+        "cola": None
     }
 
 
@@ -24,16 +25,11 @@ def agregar(lista, dato):
     # Si la lista está vacía, el nuevo nodo se convierte en la cabeza.
     if lista["cabeza"] is None:
         lista["cabeza"] = nuevo_nodo
+        lista["cola"] = nuevo_nodo
         return
 
-    # Recorre la lista hasta llegar al último nodo.
-    actual = lista["cabeza"]
-
-    while actual["siguiente"] is not None:
-        actual = actual["siguiente"]
-
-    # Conecta el último nodo con el nuevo nodo.
-    actual["siguiente"] = nuevo_nodo
+    lista["cola"]["siguiente"] = nuevo_nodo
+    lista["cola"] = nuevo_nodo
 
 
 # Elimina una solicitud de la lista utilizando su ID.
@@ -48,6 +44,9 @@ def eliminar_por_id(lista, id_solicitud):
                 lista["cabeza"] = actual["siguiente"]
             else:
                 anterior["siguiente"] = actual["siguiente"]
+
+            if lista["cola"] is actual:
+                lista["cola"] = anterior
 
             return True
 
